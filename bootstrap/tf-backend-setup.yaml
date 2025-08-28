@@ -1,0 +1,49 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  This stack creates the S3 bucket and DynamoDB table needed for
+  the Terraform backend state storage and locking.
+
+Parameters:
+  ProjectName:
+    Type: String
+    Description: A short name for the project, used to prefix resource names.
+    Default: try-aws-lambda-web-adapter
+
+Resources:
+  TerraformStateBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Delete
+    Properties:
+      BucketName: !Sub "${ProjectName}-tfstate-${AWS::AccountId}"
+      AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+
+  TerraformStateLockTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${ProjectName}-tf-lock"
+      AttributeDefinitions:
+        - AttributeName: LockID
+          AttributeType: S
+      KeySchema:
+        - AttributeName: LockID
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+
+Outputs:
+  S3BucketName:
+    Description: The name of the S3 bucket for Terraform state
+    Value: !Ref TerraformStateBucket
+  DynamoDBTableName:
+    Description: The name of the DynamoDB table for Terraform state locking
+    Value: !Ref TerraformStateLockTable

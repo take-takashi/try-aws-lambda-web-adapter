@@ -30,3 +30,21 @@ uv 0.8.13 (ede75fe62 2025-08-21)
 ```bash
 uv add Flask==3.1.2
 ```
+
+## aws setup infrastucture step 1
+
+```bash
+# CFnでTerraformのtfstateを保存するS3バケット、DynamoDBを作成する
+% aws cloudformation deploy \
+--stack-name try-aws-lambda-web-adapter-tf-backend \
+--template-file bootstrap/tf-backend-setup.yaml \
+--region ap-northeast-1
+```
+
+## destloy aws infrastructure step1
+
+```bash
+# s3バケットの中身を強制的に削除する
+# ※BUCKET_NAMEは実際のバケット名に置き換える
+% aws s3 rb s3://BUCKET_NAME --force
+```
