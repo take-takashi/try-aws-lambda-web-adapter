@@ -1,0 +1,10 @@
+[tools]
+python = "3.12.1"
+
+[env]
+_.python.venv = { path = ".venv", create = true }
+FLASK_APP = "src/try_aws_lambda_web_adapter/app.py"
+
+[tasks.flask-run]
+description = "Run the Flask development server"
+run = "flask run"
