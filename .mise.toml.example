@@ -1,0 +1,7 @@
+# 以下の内容を.mise.toml.localに記載することでenvを上書きしてください。
+
+[env]
+# Terraform Backend Configuration
+TF_BACKEND_S3_BUCKET = "REPLACE_WITH_YOUR_S3_BUCKET_NAME"
+TF_BACKEND_DYNAMODB_TABLE = "REPLACE_WITH_YOUR_DYNAMODB_TABLE_NAME"
+TF_BACKEND_REGION = "ap-northeast-1" # Set your AWS Region
