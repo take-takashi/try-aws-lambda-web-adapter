@@ -29,6 +29,7 @@ uv 0.8.13 (ede75fe62 2025-08-21)
 
 ```bash
 uv add Flask==3.1.2
+uv add gunicorn==23.0.0
 ```
 
 ## aws setup infrastucture step 1
