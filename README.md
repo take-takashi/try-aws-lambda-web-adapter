@@ -69,6 +69,44 @@ uv add gunicorn==23.0.0
 % mise run tf-init
 ```
 
+## aws setup infrastucture step 3
+
+```bash
+% terraform -chdir=terraform apply -target=aws_ecr_repository.app
+
+# STEP0. 変数
+AWS_ACCOUNT_ID=********
+AWS_REGION=ap-northeast-1
+IMAGE_NAME=try-aws-lambda-web-adapterなど
+
+# STEP1. ECRへのログイン
+# docker cli版
+% aws ecr get-login-password --region ${AWS_REGION} | \
+docker login --username AWS \
+--password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+
+# apple container版
+aws ecr get-login-password --region ${AWS_REGION} | \
+container registry login --username AWS \
+--password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+
+# STEP2. Dockerイメージをビルド
+# docker cli版
+% docker build -t ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${IMAGE_NAME}:latest .
+
+# apple container版
+% container system start
+% container build -t ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${IMAGE_NAME}:latest .
+
+# STEP3. Dockerイメージをプッシュ
+# docker cli版
+% docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${IMAGE_NAME}:latest
+
+# apple container版
+% container images push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${IMAGE_NAME}:latest
+
+```
+
 ## destloy aws infrastructure step1
 
 ```bash
@@ -76,3 +114,24 @@ uv add gunicorn==23.0.0
 # ※BUCKET_NAMEは実際のバケット名に置き換える
 % aws s3 rb s3://BUCKET_NAME --force
 ```
+
+## memo
+
+- ローカルでDockerfileをビルドするの面倒なのでgithub actionsで済ませたい
+- main.tfをいきなりapplyできない（先にECRにimageをpushする必要がある）
+  - ECR部分はmain.tfから逃した方がいいのでは？
+
+## try actions
+
+GitHub Actionsで行うこと
+
+1. ワークフローファイルの作成: プロジェクト内に.github/workflows/build-and-push.ymlのようなYAMLファイルを作成します。
+2. トリガーの設定:
+    例えば、mainブランチにコードがプッシュされた時などに、このワークフローが自動で実行されるように設定します。手動実行のトリガーも設定できます。
+3. AWS認証情報の設定: GitHubリポジトリの「Secrets」にAWSのアクセスキーを設定します。これにより、パスワードなどを直接ファイルに書き込むことなく、安
+    全にAWSを操作できます。
+4. ワークフローの処理内容の定義:
+    - ソースコードをチェックアウトする
+    - AWS認証を行う
+    - Amazon ECRにログインする
+    - DockerイメージをビルドしてECRにプッシュする
