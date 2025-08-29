@@ -53,4 +53,4 @@ Terraformのstateを安全に管理するためのS3バケットとDynamoDBテ�
 
 ## Next action
 
-* フェーズ3のmain.tfの作成から
+* COMPLETE!
