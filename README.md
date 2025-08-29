@@ -2,21 +2,41 @@
 
 AWS Lambda Web Adapterを動かす試み
 
+## your setup
+
+```bash
+% mise trust
+% mise install
+```
+
 ## `mise` setup
 
 ```bash
 % cat <<EOF > .mise.toml
 [tools]
 python = "3.12.1"
+terraform = "1.13.1"
+uv = "0.8.14"
 
 [env]
 _.python.venv = { path = ".venv", create = true }
 EOF
 % mise trust
-% mise use python@3.12.1
-% mise exec -- pip install uv
-%  uv --version
+% mise install
+
+# python version check
+% python --version
+Python 3.12.1
+
+# terraform version check
+% terraform --version
+Terraform v1.13.1
+on darwin_arm64
+
+# uv version check
+% uv --version
 uv 0.8.13 (ede75fe62 2025-08-21)
+
 ```
 
 ## project setup

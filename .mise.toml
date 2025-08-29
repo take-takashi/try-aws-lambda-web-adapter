@@ -1,5 +1,7 @@
 [tools]
 python = "3.12.1"
+terraform = "1.13.1"
+uv = "0.8.14"
 
 [env]
 _.python.venv = { path = ".venv", create = true }
@@ -15,7 +17,7 @@ run = "flask run"
 
 [tasks.tf-init]
 description = "Initialize Terraform with the S3 backend"
-run = '''
+run = '''\
 terraform -chdir=terraform init -reconfigure \
   -backend-config="bucket=$TF_BACKEND_S3_BUCKET" \
   -backend-config="dynamodb_table=$TF_BACKEND_DYNAMODB_TABLE" \
