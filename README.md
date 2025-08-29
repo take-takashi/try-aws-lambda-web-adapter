@@ -65,7 +65,7 @@ uv add gunicorn==23.0.0
 ## aws setup infrastucture step 2
 
 ```bash
-# .mise.toml.localを作成（.mise.toml.exampleを参考）し、envを定義した後に実行
+# .mise.local.tomlを作成（.mise.example.tomlを参考）し、envを定義した後に実行
 % mise run tf-init
 ```
 
