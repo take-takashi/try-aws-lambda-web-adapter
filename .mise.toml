@@ -9,7 +9,7 @@ FLASK_APP = "src/try_aws_lambda_web_adapter/app.py"
 # Terraform Backend Configuration
 TF_BACKEND_S3_BUCKET = "REPLACE_WITH_YOUR_S3_BUCKET_NAME"
 TF_BACKEND_DYNAMODB_TABLE = "REPLACE_WITH_YOUR_DYNAMODB_TABLE_NAME"
-TF_BACKEND_REGION = "ap-northeast-1" # Set your AWS Region
+TF_BACKEND_REGION = "ap-northeast-1"                                # Set your AWS Region
 
 [tasks.flask-run]
 description = "Run the Flask development server"
@@ -24,3 +24,11 @@ terraform -chdir=terraform init -reconfigure \
   -backend-config="region=$TF_BACKEND_REGION"
 '''
 alias = "tfi"
+
+[tasks.tf-plan]
+description = "Run Terraform plan"
+run = "terraform -chdir=terraform plan"
+
+[tasks.tf-apply]
+description = "Run Terraform apply"
+run = "terraform -chdir=terraform apply -auto-approve"
