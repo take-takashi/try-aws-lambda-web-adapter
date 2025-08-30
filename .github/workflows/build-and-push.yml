@@ -1,6 +1,6 @@
-name: Build and Push to ECR
+name: Build, Push, and Deploy
 
-# This workflow can be triggered manually or on a push to the main branch
+# This workflow is triggered on a push to the main branch or can be triggered manually
 on:
   workflow_dispatch:
   push:
@@ -9,27 +9,33 @@ on:
     paths:
       - 'src/**'
       - 'Dockerfile'
+      - 'terraform/**' # Trigger workflow on Terraform file changes as well
       - '.github/workflows/build-and-push.yml'
 
 # Environment variables available to all jobs and steps in this workflow
 env:
-  ECR_REPOSITORY: try-aws-lambda-web-adapter # <-- TODO: You can change this if your ECR repo has a different name
+  ECR_REPOSITORY: try-aws-lambda-web-adapter
   AWS_REGION: ap-northeast-1
+  TF_WORKING_DIR: ./terraform # Set Terraform working directory
 
 jobs:
-  build-and-push:
-    name: Build and Push
+  build-push-deploy:
+    name: Build, Push and Deploy
     runs-on: ubuntu-latest
+    # These permissions are needed to interact with GitHub's OIDC Token endpoint.
+    permissions:
+      id-token: write
+      contents: read
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Configure AWS credentials
+      - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          # The ARN of the IAM role to assume
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }} # <-- IMPORTANT: You need to create this secret
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
@@ -42,9 +48,20 @@ jobs:
         with:
           context: .
           push: true
-          # Build for linux/amd64, which is the default architecture for Lambda
           platforms: linux/amd64
           tags: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest,${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
-          # Add build arguments if you need them
-          # build-args: |
-          #   ARG_NAME=value
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.8.0 # You can specify your desired Terraform version
+
+      - name: Terraform Init
+        id: init
+        run: terraform init
+        working-directory: ${{ env.TF_WORKING_DIR }}
+
+      - name: Terraform Apply
+        id: apply
+        run: terraform apply -auto-approve -input=false
+        working-directory: ${{ env.TF_WORKING_DIR }}
