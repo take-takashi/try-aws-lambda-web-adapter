@@ -7,17 +7,49 @@ uv = "0.8.14"
 _.python.venv = { path = ".venv", create = true }
 FLASK_APP = "src/try_aws_lambda_web_adapter/app.py"
 # Terraform Backend Configuration
+TF_BACKEND_STACK_NAME = "try-aws-lambda-web-adapter-tf-backend"
 TF_BACKEND_S3_BUCKET = "REPLACE_WITH_YOUR_S3_BUCKET_NAME"
 TF_BACKEND_DYNAMODB_TABLE = "REPLACE_WITH_YOUR_DYNAMODB_TABLE_NAME"
-TF_BACKEND_REGION = "ap-northeast-1"                                # Set your AWS Region
+TF_BACKEND_REGION = "REPLACE_WITH_YOUR_AWS_REGION(ex. ap-northeast-1)"
+GITHUB_USER = "REPLACE_WITH_YOUR_GITHUB_USER(ex. take-takashi)"
+GITHUB_REPO = "REPLACE_WITH_YOUR_GITHUB_REPO(ex. try-aws-lambda-web-adapter)"
+
 
 [tasks.flask-run]
 description = "Run the Flask development server"
 run = "flask run"
 
+[tasks.cfn-create-tfbackend]
+description = "Terraformのbackend用のAWSリソースをCFnで作成する"
+run = '''
+aws cloudformation deploy \
+--stack-name ${TF_BACKEND_STACK_NAME} \
+--template-file bootstrap/tf-backend-setup.yaml \
+--region ${TF_BACKEND_REGION}
+'''
+
+[tasks.cfn-create-oidc-role]
+description = "Deploy the CloudFormation stack for GitHub OIDC Role."
+run = '''
+# Check if GITHUB_USER and GITHUB_REPO are set
+if [ -z "${GITHUB_USER}" ] || [ -z "${GITHUB_REPO}" ]; then
+  echo "Error: GITHUB_USER and GITHUB_REPO environment variables must be set."
+  echo "Usage: GITHUB_USER=your-user GITHUB_REPO=your-repo mise run cfn-deploy"
+  exit 1
+fi
+
+aws cloudformation deploy \
+  --template-file bootstrap/github-oidc-role.yaml \
+  --stack-name "github-actions-oidc-${GITHUB_USER}-${GITHUB_REPO}" \
+  --parameter-overrides \
+      GitHubOrg=${GITHUB_USER} \
+      GitHubRepo=${GITHUB_REPO} \
+  --capabilities CAPABILITY_NAMED_IAM
+'''
+
 [tasks.tf-init]
 description = "Initialize Terraform with the S3 backend"
-run = '''\
+run = '''
 terraform -chdir=terraform init -reconfigure \
   -backend-config="bucket=$TF_BACKEND_S3_BUCKET" \
   -backend-config="dynamodb_table=$TF_BACKEND_DYNAMODB_TABLE" \
@@ -32,22 +64,3 @@ run = "terraform -chdir=terraform plan"
 [tasks.tf-apply]
 description = "Run Terraform apply"
 run = "terraform -chdir=terraform apply -auto-approve"
-
-[tasks.cfn-deploy]
-description = "Deploy the CloudFormation stack for GitHub OIDC Role. Usage: GITHUB_USER=your-user GITHUB_REPO=your-repo mise run cfn-deploy"
-run = '''
-# Check if GITHUB_USER and GITHUB_REPO are set
-if [ -z "$GITHUB_USER" ] || [ -z "$GITHUB_REPO" ]; then
-  echo "Error: GITHUB_USER and GITHUB_REPO environment variables must be set."
-  echo "Usage: GITHUB_USER=your-user GITHUB_REPO=your-repo mise run cfn-deploy"
-  exit 1
-fi
-
-aws cloudformation deploy \
-  --template-file bootstrap/github-oidc-role.yaml \
-  --stack-name "github-actions-oidc-${GITHUB_USER}-${GITHUB_REPO}" \
-  --parameter-overrides \
-      GitHubOrg=$GITHUB_USER \
-      GitHubRepo=$GITHUB_REPO \
-  --capabilities CAPABILITY_NAMED_IAM
-'''
