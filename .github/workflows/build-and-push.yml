@@ -58,6 +58,9 @@ jobs:
 
       - name: Terraform Init
         id: init
+        timeout-minutes: 5 # Add a timeout to prevent indefinite hangs
+        env:
+          TF_LOG: DEBUG # Enable debug logging for Terraform
         run: terraform init
         working-directory: ${{ env.TF_WORKING_DIR }}
 
