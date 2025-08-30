@@ -17,19 +17,37 @@ locals {
   tags = {
     Project = local.project_name
   }
+
+  # Check if the 'latest' image exists in the ECR repository.
+  # The `try` function handles the error that occurs if the image is not found.
+  latest_image = try(data.aws_ecr_image.app.image_digest, null)
+
+  # Use the public dummy image if our image doesn't exist yet (on the first run).
+  # Otherwise, use the image from our ECR repository.
+  lambda_image_uri = local.latest_image == null ? "public.ecr.aws/lambda/python:3.12-slim" : "${aws_ecr_repository.app.repository_url}@${data.aws_ecr_image.app.image_digest}"
 }
 
 # ECR
 resource "aws_ecr_repository" "app" {
   name                 = local.project_name
   image_tag_mutability = "MUTABLE"
-  force_delete         = true
+  force_delete         = true # Be careful with this in production
 
   image_scanning_configuration {
     scan_on_push = true
   }
 
   tags = local.tags
+}
+
+# Attempt to find the 'latest' tagged image in our repository.
+# This depends on the repository being created first.
+data "aws_ecr_image" "app" {
+  repository_name = aws_ecr_repository.app.name
+  image_tag       = "latest"
+  depends_on = [
+    aws_ecr_repository.app
+  ]
 }
 
 # CloudWatch
@@ -70,10 +88,15 @@ resource "aws_lambda_function" "app" {
   function_name = local.project_name
   role          = aws_iam_role.app.arn
   package_type  = "Image"
-  image_uri     = "${aws_ecr_repository.app.repository_url}:latest"
+  image_uri     = local.lambda_image_uri # Use the conditional image URI
   timeout       = 30
 
   tags = local.tags
+
+  # Explicitly depend on the ECR repository resource
+  depends_on = [
+    aws_ecr_repository.app
+  ]
 }
 
 # API Gateway (HTTP API)
