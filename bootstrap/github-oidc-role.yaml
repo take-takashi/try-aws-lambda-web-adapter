@@ -1,0 +1,65 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Creates an IAM OIDC provider for GitHub Actions and an IAM Role
+  that can be assumed by a specific GitHub repository.
+
+Parameters:
+  GitHubOrg:
+    Type: String
+    Description: Your GitHub username or organization name (e.g., 'my-github-user').
+  GitHubRepo:
+    Type: String
+    Description: The name of your GitHub repository (e.g., 'try-aws-lambda-web-adapter').
+  BranchName:
+    Type: String
+    Default: main
+    Description: The branch name that is allowed to assume this role (e.g., 'main').
+
+Resources:
+  # ------------------------------------------------------------#
+  #  OIDC Identity Provider for GitHub Actions
+  # ------------------------------------------------------------#
+  GitHubOidcProvider:
+    Type: AWS::IAM::OIDCProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList:
+        - sts.amazonaws.com
+      # This thumbprint is for the GitHub Actions OIDC provider.
+      # It may need to be updated if GitHub changes its certificate.
+      # See AWS documentation for the latest value.
+      ThumbprintList:
+        - 6938fd4d98bab03faadb97b34396831e3780aea1
+
+  # ------------------------------------------------------------#
+  #  IAM Role for GitHub Actions
+  # ------------------------------------------------------------#
+  GitHubActionsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "GitHubActionsRole-${GitHubOrg}-${GitHubRepo}"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Ref GitHubOidcProvider
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              # Restrict access to the specified repository and branch
+              StringEquals:
+                "token.actions.githubusercontent.com:sub": !Sub "repo:${GitHubOrg}/${GitHubRepo}:ref:refs/heads/${BranchName}"
+                "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+      Description: "Role to be assumed by GitHub Actions for CI/CD purposes."
+      # --- IMPORTANT ---
+      # For production environments, it is strongly recommended to create a custom
+      # policy with the minimum required permissions instead of using AdministratorAccess.
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/AdministratorAccess"
+
+Outputs:
+  GitHubActionsRoleArn:
+    Description: "The ARN of the created IAM role for GitHub Actions"
+    Value: !GetAtt GitHubActionsRole.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-RoleArn"
