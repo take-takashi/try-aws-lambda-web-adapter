@@ -72,8 +72,18 @@ uv add gunicorn==23.0.0
 ## aws setup infrastucture step 3
 
 ```bash
-% terraform -chdir=terraform apply -target=aws_ecr_repository.app
+% mise run tf-plan
+% mise run tf-apply
 
+```
+
+## When manually pushing the image
+
+手動でDocker buildしたimageをECRにプッシュする場合の手順。
+
+すでにGithub Actionsで自動化しているのであまり使わないかも。
+
+```bash
 # STEP0. 変数
 AWS_ACCOUNT_ID=********
 AWS_REGION=ap-northeast-1
@@ -104,7 +114,6 @@ container registry login --username AWS \
 
 # apple container版
 % container images push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${IMAGE_NAME}:latest
-
 ```
 
 ## destloy aws infrastructure step1
@@ -118,22 +127,6 @@ container registry login --username AWS \
 ## memo
 
 - ローカルでDockerfileをビルドするの面倒なのでgithub actionsで済ませたい
-- main.tfをいきなりapplyできない（先にECRにimageをpushする必要がある）
-  - ECR部分はmain.tfから逃した方がいいのでは？
 - mdの更新（docker build系はgithub actionsに任せた）
 - サイトのURLはどうにかなる？
-
-## try actions
-
-GitHub Actionsで行うこと
-
-1. ワークフローファイルの作成: プロジェクト内に.github/workflows/build-and-push.ymlのようなYAMLファイルを作成します。
-2. トリガーの設定:
-    例えば、mainブランチにコードがプッシュされた時などに、このワークフローが自動で実行されるように設定します。手動実行のトリガーも設定できます。
-3. AWS認証情報の設定: GitHubリポジトリの「Secrets」にAWSのアクセスキーを設定します。これにより、パスワードなどを直接ファイルに書き込むことなく、安
-    全にAWSを操作できます。
-4. ワークフローの処理内容の定義:
-    - ソースコードをチェックアウトする
-    - AWS認証を行う
-    - Amazon ECRにログインする
-    - DockerイメージをビルドしてECRにプッシュする
+- OIDC Roleの作成用のtasksが貧弱なので直したい
