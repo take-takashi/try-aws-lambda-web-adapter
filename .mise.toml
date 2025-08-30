@@ -32,3 +32,22 @@ run = "terraform -chdir=terraform plan"
 [tasks.tf-apply]
 description = "Run Terraform apply"
 run = "terraform -chdir=terraform apply -auto-approve"
+
+[tasks.cfn-deploy]
+description = "Deploy the CloudFormation stack for GitHub OIDC Role. Usage: GITHUB_USER=your-user GITHUB_REPO=your-repo mise run cfn-deploy"
+run = '''
+# Check if GITHUB_USER and GITHUB_REPO are set
+if [ -z "$GITHUB_USER" ] || [ -z "$GITHUB_REPO" ]; then
+  echo "Error: GITHUB_USER and GITHUB_REPO environment variables must be set."
+  echo "Usage: GITHUB_USER=your-user GITHUB_REPO=your-repo mise run cfn-deploy"
+  exit 1
+fi
+
+aws cloudformation deploy \
+  --template-file bootstrap/github-oidc-role.yaml \
+  --stack-name "github-actions-oidc-${GITHUB_USER}-${GITHUB_REPO}" \
+  --parameter-overrides \
+      GitHubOrg=$GITHUB_USER \
+      GitHubRepo=$GITHUB_REPO \
+  --capabilities CAPABILITY_NAMED_IAM
+'''

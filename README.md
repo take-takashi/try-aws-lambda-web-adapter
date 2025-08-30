@@ -120,6 +120,8 @@ container registry login --username AWS \
 - ローカルでDockerfileをビルドするの面倒なのでgithub actionsで済ませたい
 - main.tfをいきなりapplyできない（先にECRにimageをpushする必要がある）
   - ECR部分はmain.tfから逃した方がいいのでは？
+- mdの更新（docker build系はgithub actionsに任せた）
+- サイトのURLはどうにかなる？
 
 ## try actions
 
