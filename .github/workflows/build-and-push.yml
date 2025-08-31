@@ -61,7 +61,13 @@ jobs:
         timeout-minutes: 5 # Add a timeout to prevent indefinite hangs
         env:
           TF_LOG: DEBUG # Enable debug logging for Terraform
-        run: terraform init
+          TF_BACKEND_S3_BUCKET: ${{ secrets.TF_BACKEND_S3_BUCKET }}
+          TF_BACKEND_DYNAMODB_TABLE: ${{ secrets.TF_BACKEND_DYNAMODB_TABLE }}
+        run: |
+          terraform init -reconfigure -input=false \
+            -backend-config="bucket=${TF_BACKEND_S3_BUCKET}" \
+            -backend-config="dynamodb_table=${TF_BACKEND_DYNAMODB_TABLE}" \
+            -backend-config="region=${TF_BACKEND_REGION}"
         working-directory: ${{ env.TF_WORKING_DIR }}
 
       - name: Terraform Apply
