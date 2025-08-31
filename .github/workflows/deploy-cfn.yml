@@ -1,0 +1,66 @@
+name: Build, Push, and Deploy (CFn)
+
+on:
+  workflow_dispatch:
+  #push:
+  #  branches:
+  #    - main
+  #  paths:
+  #    - 'src/**'
+  #    - 'Dockerfile'
+  #    - 'cloudformation/**'
+  #    - '.github/workflows/deploy-cfn.yml'
+
+env:
+  ECR_REPOSITORY: try-aws-lambda-web-adapter
+  AWS_REGION: ap-northeast-1
+
+jobs:
+  build-and-deploy-cfn:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy base infra (create ECR + placeholder Lambda)
+        run: |
+          aws cloudformation deploy \
+            --stack-name "${{ env.ECR_REPOSITORY }}" \
+            --template-file cloudformation/app.yaml \
+            --parameter-overrides \
+              ProjectName=${{ env.ECR_REPOSITORY }} \
+            --capabilities CAPABILITY_NAMED_IAM
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, tag, and push image to Amazon ECR
+        id: build-image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64
+          tags: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest,${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+
+      - name: Deploy via CloudFormation
+        run: |
+          IMAGE_URI="${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}@${{ steps.build-image.outputs.digest }}"
+          aws cloudformation deploy \
+            --stack-name "${{ env.ECR_REPOSITORY }}" \
+            --template-file cloudformation/app.yaml \
+            --parameter-overrides \
+              ProjectName=${{ env.ECR_REPOSITORY }} \
+              ImageUri="${IMAGE_URI}" \
+            --capabilities CAPABILITY_NAMED_IAM
