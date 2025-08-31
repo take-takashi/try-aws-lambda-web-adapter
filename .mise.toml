@@ -2,6 +2,7 @@
 python = "3.12.1"
 terraform = "1.13.1"
 uv = "0.8.14"
+gh = "latest"
 
 [env]
 _.python.venv = { path = ".venv", create = true }
@@ -11,13 +12,17 @@ TF_BACKEND_STACK_NAME = "try-aws-lambda-web-adapter-tf-backend"
 TF_BACKEND_S3_BUCKET = "REPLACE_WITH_YOUR_S3_BUCKET_NAME"
 TF_BACKEND_DYNAMODB_TABLE = "REPLACE_WITH_YOUR_DYNAMODB_TABLE_NAME"
 TF_BACKEND_REGION = "REPLACE_WITH_YOUR_AWS_REGION(ex. ap-northeast-1)"
-GITHUB_USER = "REPLACE_WITH_YOUR_GITHUB_USER(ex. take-takashi)"
-GITHUB_REPO = "REPLACE_WITH_YOUR_GITHUB_REPO(ex. try-aws-lambda-web-adapter)"
+GH_USER = "REPLACE_WITH_YOUR_GITHUB_USER(ex. take-takashi)"
+GH_REPO = "REPLACE_WITH_YOUR_GITHUB_REPO(ex. try-aws-lambda-web-adapter)"
 
 
 [tasks.flask-run]
 description = "Run the Flask development server"
 run = "flask run"
+
+[tasks.gh-update-secrets]
+description = "Update GitHub Actions secrets from .mise.local.toml"
+run = "python scripts/update_gh_secrets.py --file .mise.local.toml --table env"
 
 [tasks.cfn-create-tfbackend]
 description = "Terraformのbackend用のAWSリソースをCFnで作成する"
@@ -31,19 +36,19 @@ aws cloudformation deploy \
 [tasks.cfn-create-oidc-role]
 description = "Deploy the CloudFormation stack for GitHub OIDC Role."
 run = '''
-# Check if GITHUB_USER and GITHUB_REPO are set
-if [ -z "${GITHUB_USER}" ] || [ -z "${GITHUB_REPO}" ]; then
-  echo "Error: GITHUB_USER and GITHUB_REPO environment variables must be set."
-  echo "Usage: GITHUB_USER=your-user GITHUB_REPO=your-repo mise run cfn-deploy"
+# Check if GH_USER and GH_REPO are set
+if [ -z "${GH_USER}" ] || [ -z "${GH_REPO}" ]; then
+  echo "Error: GH_USER and GH_REPO environment variables must be set."
+  echo "Usage: GH_USER=your-user GH_REPO=your-repo mise run cfn-deploy"
   exit 1
 fi
 
 aws cloudformation deploy \
   --template-file bootstrap/github-oidc-role.yaml \
-  --stack-name "github-actions-oidc-${GITHUB_USER}-${GITHUB_REPO}" \
+  --stack-name "github-actions-oidc-${GH_USER}-${GH_REPO}" \
   --parameter-overrides \
-      GitHubOrg=${GITHUB_USER} \
-      GitHubRepo=${GITHUB_REPO} \
+      GitHubOrg=${GH_USER} \
+      GitHubRepo=${GH_REPO} \
   --capabilities CAPABILITY_NAMED_IAM
 '''
 
