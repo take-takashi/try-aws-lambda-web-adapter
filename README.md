@@ -52,6 +52,14 @@ uv add Flask==3.1.2
 uv add gunicorn==23.0.0
 ```
 
+## Githubリポジトリのsecretsを.mise.local.tomlの内容で設定する
+
+```bash
+% gh auth login
+% mise run gh-update-secrets
+
+```
+
 ## aws setup infrastucture step 1
 
 ```bash
