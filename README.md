@@ -138,3 +138,10 @@ container registry login --username AWS \
 - mdの更新（docker build系はgithub actionsに任せた）
 - サイトのURLはどうにかなる？
 - OIDC Roleの作成用のtasksが貧弱なので直したい
+
+## CloudFormation版
+
+- リポジトリSecretsに以下を設定が必要。（Github Actionsで動かすために）
+  - AWS_OIDC_ROLE_ARN（既存）
+  - WAF_ALLOWED_IPV4_CIDRS（カンマ区切りCIDR）
+  - ORIGIN_SECRET（任意のシークレット:CloudFrontからのアクセスに制限をかける）

@@ -93,3 +93,6 @@ Outputs:
   EcrRepositoryUrl:
     Description: ECR repository URL
     Value: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ProjectName}"
+  HttpApiId:
+    Description: HTTP API ID for cross-region consumers (e.g., CloudFront origin)
+    Value: !Ref HttpApi

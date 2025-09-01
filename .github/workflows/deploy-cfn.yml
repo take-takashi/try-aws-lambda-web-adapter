@@ -64,3 +64,31 @@ jobs:
               ProjectName=${{ env.ECR_REPOSITORY }} \
               ImageUri="${IMAGE_URI}" \
             --capabilities CAPABILITY_NAMED_IAM
+
+      - name: Fetch HttpApiId from stack outputs
+        id: fetch-httpapi
+        run: |
+          HTTP_API_ID=$(aws cloudformation describe-stacks \
+            --stack-name "${{ env.ECR_REPOSITORY }}" \
+            --query "Stacks[0].Outputs[?OutputKey=='HttpApiId'].OutputValue" \
+            --output text)
+          echo "Resolved HttpApiId: ${HTTP_API_ID}"
+          echo "http_api_id=${HTTP_API_ID}" >> "$GITHUB_OUTPUT"
+
+      - name: Configure AWS credentials for us-east-1 (CloudFront/WAF)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Deploy edge (CloudFront + WAF) via CloudFormation
+        run: |
+          aws cloudformation deploy \
+            --stack-name "${{ env.ECR_REPOSITORY }}-edge" \
+            --template-file cloudformation/edge.yaml \
+            --parameter-overrides \
+              ProjectName=${{ env.ECR_REPOSITORY }} \
+              HttpApiId=${{ steps.fetch-httpapi.outputs.http_api_id }} \
+              OriginRegion=${{ env.AWS_REGION }} \
+              AllowedIPv4Cidrs=${{ secrets.WAF_ALLOWED_IPV4_CIDRS }} \
+              OriginSecret=${{ secrets.ORIGIN_SECRET }}

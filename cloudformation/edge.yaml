@@ -1,0 +1,131 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudFront + WAFv2 in front of API Gateway HTTP API (Lambda Web Adapter backend)
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: try-aws-lambda-web-adapter
+  HttpApiId:
+    Type: String
+    Description: HTTP API ID (e.g. a1b2c3d4e5)
+  OriginRegion:
+    Type: String
+    Default: ap-northeast-1
+    Description: Region where the HTTP API (origin) is deployed
+  OriginSecret:
+    Type: String
+    NoEcho: true
+    Description: Shared secret header value CloudFront sends to origin. Enforce in app or authorizer.
+  AllowedIPv4Cidrs:
+    Type: CommaDelimitedList
+    Description: IPv4 CIDRs allowed to access via WAF (e.g. 203.0.113.0/24,198.51.100.1/32)
+  PriceClass:
+    Type: String
+    Default: PriceClass_200
+    AllowedValues: [PriceClass_100, PriceClass_200, PriceClass_All]
+    Description: CloudFront price class
+
+Mappings: {}
+
+Resources:
+  # WAFv2 allow-list by IPv4. Note: Scope CLOUDFRONT requires deployment in us-east-1.
+  AllowedIpv4Set:
+    Type: AWS::WAFv2::IPSet
+    Properties:
+      Name: !Sub "${ProjectName}-allow-ipv4"
+      Scope: CLOUDFRONT
+      IPAddressVersion: IPV4
+      Addresses: !Ref AllowedIPv4Cidrs
+      Description: Allow-listed IPv4 CIDRs
+
+  WebACL:
+    Type: AWS::WAFv2::WebACL
+    Properties:
+      Name: !Sub "${ProjectName}-web-acl"
+      Scope: CLOUDFRONT
+      DefaultAction:
+        Block: {}
+      VisibilityConfig:
+        CloudWatchMetricsEnabled: true
+        MetricName: !Sub "${ProjectName}-web-acl"
+        SampledRequestsEnabled: true
+      Rules:
+        - Name: AllowListedIPs
+          Priority: 0
+          Action:
+            Allow: {}
+          Statement:
+            IPSetReferenceStatement:
+              Arn: !GetAtt AllowedIpv4Set.Arn
+          VisibilityConfig:
+            CloudWatchMetricsEnabled: true
+            MetricName: !Sub "${ProjectName}-allow-listed-ips"
+            SampledRequestsEnabled: true
+
+  NoCachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        Name: !Sub "${ProjectName}-no-cache"
+        DefaultTTL: 0
+        MaxTTL: 0
+        MinTTL: 0
+        ParametersInCacheKeyAndForwardedToOrigin:
+          EnableAcceptEncodingBrotli: true
+          EnableAcceptEncodingGzip: true
+          CookiesConfig:
+            CookieBehavior: none
+          HeadersConfig:
+            HeaderBehavior: none
+          QueryStringsConfig:
+            QueryStringBehavior: none
+
+  AllViewerOriginRequestPolicy:
+    Type: AWS::CloudFront::OriginRequestPolicy
+    Properties:
+      OriginRequestPolicyConfig:
+        Name: !Sub "${ProjectName}-all-viewer"
+        CookiesConfig:
+          CookieBehavior: all
+        HeadersConfig:
+          HeaderBehavior: allViewer
+        QueryStringsConfig:
+          QueryStringBehavior: all
+
+  Distribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: !Sub "${ProjectName} via API Gateway HTTP API"
+        PriceClass: !Ref PriceClass
+        HttpVersion: http2
+        Origins:
+          - Id: ApiGatewayOrigin
+            DomainName: !Sub "${HttpApiId}.execute-api.${OriginRegion}.amazonaws.com"
+            CustomOriginConfig:
+              OriginProtocolPolicy: https-only
+              OriginSslProtocols: [TLSv1.2]
+            OriginCustomHeaders:
+              - HeaderName: X-Origin-Secret
+                HeaderValue: !Ref OriginSecret
+        DefaultCacheBehavior:
+          TargetOriginId: ApiGatewayOrigin
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [GET, HEAD, OPTIONS, PUT, POST, PATCH, DELETE]
+          CachedMethods: [GET, HEAD, OPTIONS]
+          Compress: true
+          CachePolicyId: !Ref NoCachePolicy
+          OriginRequestPolicyId: !Ref AllViewerOriginRequestPolicy
+        WebACLId: !GetAtt WebACL.Arn
+
+Outputs:
+  CloudFrontDomainName:
+    Description: CloudFront distribution domain name
+    Value: !GetAtt Distribution.DomainName
+  CloudFrontDistributionId:
+    Description: CloudFront distribution ID
+    Value: !Ref Distribution
+  WebAclArn:
+    Description: WAFv2 WebACL ARN (CLOUDFRONT scope)
+    Value: !GetAtt WebACL.Arn
