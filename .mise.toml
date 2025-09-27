@@ -3,6 +3,7 @@ python = "3.12.1"
 terraform = "1.13.1"
 uv = "0.8.14"
 gh = "latest"
+aws-cli = "latest"
 
 [env]
 _.python.venv = { path = ".venv", create = true }
@@ -69,3 +70,15 @@ run = "terraform -chdir=terraform plan"
 [tasks.tf-apply]
 description = "Run Terraform apply"
 run = "terraform -chdir=terraform apply -auto-approve"
+
+[tasks.cfn-deploy]
+run = '''
+aws cloudformation deploy \
+  --stack-name try-stack-test \
+  --template-file cloudformation/frontend.yaml \
+  --parameter-overrides \
+      ProjectName=try-stack-test \
+      BasicAuthUsername=admin \
+      BasicAuthPassword=password \
+  --capabilities CAPABILITY_NAMED_IAM
+'''
