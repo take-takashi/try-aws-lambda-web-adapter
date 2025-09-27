@@ -60,6 +60,8 @@ uv add gunicorn==23.0.0
 
 ```
 
+# Terraform版のインフラ構築&削除
+
 ## aws setup infrastucture step 1
 
 ```bash
@@ -127,9 +129,21 @@ container registry login --username AWS \
 ## destloy aws infrastructure step1
 
 ```bash
+# terraform destroyでterraformで作成したインフラを削除
+terraform -chdir=terraform destroy
+```
+
+## destloy aws infrastructure step2
+
+```bash
 # s3バケットの中身を強制的に削除する
-# ※BUCKET_NAMEは実際のバケット名に置き換える
-% aws s3 rb s3://BUCKET_NAME --force
+% aws s3 rm s3://${TF_BACKEND_S3_BUCKET} --recursive
+```
+
+## destroy aws infrastructure step3
+
+```bash
+aws cloudformation delete-stack --stack-name ${TF_BACKEND_STACK_NAME}  --region ${AWS_DEFAULT_REGION}
 ```
 
 ## memo
@@ -139,9 +153,18 @@ container registry login --username AWS \
 - サイトのURLはどうにかなる？
 - OIDC Roleの作成用のtasksが貧弱なので直したい
 
-## CloudFormation版
+# CloudFormation版
 
 - リポジトリSecretsに以下を設定が必要。（Github Actionsで動かすために）
   - AWS_OIDC_ROLE_ARN（既存）
   - WAF_ALLOWED_IPV4_CIDRS（カンマ区切りCIDR）
   - ORIGIN_SECRET（任意のシークレット:CloudFrontからのアクセスに制限をかける）
+
+## AWS操作用のroleの作成
+
+```bash
+# envでGH_REPOとGH_USERを設定しておくこと（Github actionsからAWSを操作するため）
+# ここで作成するroleはAdminなので本当は権限を絞ること
+mise run cfn-create-oidc-role
+# 実行結果で出力された値を控える
+```
